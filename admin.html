@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | Denver C. Balangbang Lead Management</title>
+  <meta name="robots" content="noindex, nofollow">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234F46E5' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M9 9h6v6H9z'/></svg>">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen relative p-4 sm:p-8">
+
+  <!-- Ambient Glowing Background Canvas -->
+  <div class="ambient-glow-mesh">
+    <div class="ambient-orb orb-primary"></div>
+    <div class="ambient-orb orb-violet"></div>
+  </div>
+
+  <div class="max-w-6xl mx-auto space-y-8 relative z-10">
+    
+    <!-- Top Header -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-card rounded-2xl p-6 border border-slate-200 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white font-tech font-bold flex items-center justify-center shadow-md">
+          DB
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">Lead Inquiries & Email Captures</h1>
+          <p class="text-xs text-slate-500 font-medium">Denver C. Balangbang • Confidential Admin Hub</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <button id="downloadCsvBtn" class="btn-futuristic px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-md">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span>Download CSV File</span>
+        </button>
+
+        <button id="clearDataBtn" class="px-3.5 py-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 text-xs font-semibold hover:bg-rose-600 hover:text-white transition-colors flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          <span>Clear All</span>
+        </button>
+
+        <a href="index.html" class="px-3.5 py-2.5 rounded-xl bg-white text-slate-600 border border-slate-200 text-xs font-semibold hover:text-indigo-600 transition-colors">
+          View Website →
+        </a>
+      </div>
+    </header>
+
+    <!-- Quick Stats Metrics -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="glass-card rounded-2xl p-5 border border-slate-200 space-y-1">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Captured Leads</span>
+        <div class="text-2xl sm:text-3xl font-extrabold text-indigo-600 font-tech" id="totalLeadsCount">0</div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border border-slate-200 space-y-1">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Latest Submission</span>
+        <div class="text-sm font-semibold text-slate-800 truncate" id="latestLeadTime">No submissions yet</div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border border-slate-200 space-y-1">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Format</span>
+        <div class="text-sm font-semibold text-emerald-600 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          Ready for Excel / CSV Export
+        </div>
+      </div>
+    </div>
+
+    <!-- Leads Table Container -->
+    <div class="glass-card-featured rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-100 space-y-4">
+      <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Captured Inquiries</h2>
+          <p class="text-xs text-slate-500">List of all prospect emails submitted via the direct contact form.</p>
+        </div>
+        <button id="refreshBtn" class="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Refresh List
+        </button>
+      </div>
+
+      <!-- Table Scroll Wrapper -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
+              <th class="py-3 px-4">Date & Time</th>
+              <th class="py-3 px-4">Client Name</th>
+              <th class="py-3 px-4">Email Address</th>
+              <th class="py-3 px-4">Message / Requirements</th>
+              <th class="py-3 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="leadsTableBody" class="divide-y divide-slate-100 text-slate-700">
+            <!-- Dynamically Rendered -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State Container -->
+      <div id="emptyState" class="hidden py-12 text-center space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+          </svg>
+        </div>
+        <div class="font-semibold text-slate-700">No Inquiries Recorded Yet</div>
+        <p class="text-xs text-slate-400 max-w-sm mx-auto">When clients submit their name and email on your landing page, their details will automatically appear here.</p>
+      </div>
+
+    </div>
+
+    <!-- Security & Privacy Footer -->
+    <footer class="text-center text-xs text-slate-400 pt-4">
+      &copy; 2026 Denver C. Balangbang • Lead Data Stored Locally in Browser Storage
+    </footer>
+
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'denver_leads';
+
+    function getLeads() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveLeads(leads) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+    }
+
+    function renderLeads() {
+      const leads = getLeads();
+      const tbody = document.getElementById('leadsTableBody');
+      const emptyState = document.getElementById('emptyState');
+      const countEl = document.getElementById('totalLeadsCount');
+      const latestEl = document.getElementById('latestLeadTime');
+
+      countEl.textContent = leads.length;
+
+      if (leads.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        latestEl.textContent = 'No submissions yet';
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      latestEl.textContent = new Date(leads[0].timestamp || Date.now()).toLocaleString();
+
+      tbody.innerHTML = leads.map((lead, index) => `
+        <tr class="hover:bg-slate-50/80 transition-colors">
+          <td class="py-3.5 px-4 text-xs text-slate-500 font-tech whitespace-nowrap">
+            ${new Date(lead.timestamp || Date.now()).toLocaleDateString()} ${new Date(lead.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </td>
+          <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">
+            ${escapeHtml(lead.name || 'Anonymous')}
+          </td>
+          <td class="py-3.5 px-4 text-indigo-600 font-medium whitespace-nowrap font-tech">
+            <a href="mailto:${escapeHtml(lead.email)}?subject=Re:%20Discovery%20Inquiry%20-%20Denver%20Balangbang" class="hover:underline">
+              ${escapeHtml(lead.email || 'N/A')}
+            </a>
+          </td>
+          <td class="py-3.5 px-4 text-slate-600 text-xs max-w-xs sm:max-w-md truncate" title="${escapeHtml(lead.message || '')}">
+            ${escapeHtml(lead.message || 'No message provided')}
+          </td>
+          <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-2">
+            <a href="mailto:${escapeHtml(lead.email)}?subject=Re:%20Discovery%20Inquiry%20-%20Denver%20Balangbang" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-colors text-xs font-semibold inline-block">
+              Reply
+            </a>
+            <button onclick="deleteLead(${index})" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-colors text-xs font-semibold" title="Delete entry">
+              ✕
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    window.deleteLead = function(index) {
+      const leads = getLeads();
+      leads.splice(index, 1);
+      saveLeads(leads);
+      renderLeads();
+    };
+
+    // CSV Exporter
+    document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+      const leads = getLeads();
+      if (leads.length === 0) {
+        alert('No leads recorded yet to export.');
+        return;
+      }
+
+      let csvContent = 'Date & Time,Client Name,Email Address,Message\r\n';
+
+      leads.forEach(lead => {
+        const date = new Date(lead.timestamp || Date.now()).toISOString();
+        const name = `"${(lead.name || '').replace(/"/g, '""')}"`;
+        const email = `"${(lead.email || '').replace(/"/g, '""')}"`;
+        const message = `"${(lead.message || '').replace(/"/g, '""')}"`;
+        csvContent += `${date},${name},${email},${message}\r\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `denver_balangbang_leads_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // Clear Data
+    document.getElementById('clearDataBtn').addEventListener('click', () => {
+      if (confirm('Are you sure you want to clear all recorded leads? This cannot be undone.')) {
+        localStorage.removeItem(STORAGE_KEY);
+        renderLeads();
+      }
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', renderLeads);
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // If empty, populate a sample initial record for demonstration
+      if (!localStorage.getItem(STORAGE_KEY)) {
+        saveLeads([
+          {
+            name: "Sarah Jenkins",
+            email: "sarah.jenkins@growthventures.io",
+            message: "Looking for full-service VA support for our digital agency: Instagram scheduling, Wix updates, and spreadsheet data entry. Interested in the 7-day trial!",
+            timestamp: Date.now() - 3600000 * 4
+          }
+        ]);
+      }
+      renderLeads();
+    });
+  </script>
+</body>
+</html>

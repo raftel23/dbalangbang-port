@@ -170,7 +170,7 @@ function initCopyEmail() {
 }
 
 /**
- * Interactive Contact Form Handling
+ * Interactive Contact Form Handling & Lead Capture
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
@@ -179,25 +179,58 @@ function initContactForm() {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
 
+    const nameInput = document.getElementById('clientName');
+    const emailInput = document.getElementById('clientEmail');
+    const messageInput = document.getElementById('clientMessage');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const email = emailInput ? emailInput.value.trim() : '';
+    const message = messageInput ? messageInput.value.trim() : '';
+
+    if (!name || !email || !message) {
+      showToast("Please fill in your name, email, and message.", "warning");
+      return;
+    }
+
     const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
+    const originalText = submitBtn ? submitBtn.innerHTML : 'Send Message';
 
     // Simulate sending state
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `
-      <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-      </svg>
-      Sending Message...
-    `;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        Sending Message...
+      `;
+    }
+
+    // Save lead to persistent localStorage
+    try {
+      const STORAGE_KEY = 'denver_leads';
+      const existing = localStorage.getItem(STORAGE_KEY);
+      const leads = existing ? JSON.parse(existing) : [];
+      leads.unshift({
+        name,
+        email,
+        message,
+        timestamp: Date.now()
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+    } catch (err) {
+      console.warn("Could not save to localStorage:", err);
+    }
 
     setTimeout(() => {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
       form.reset();
-      showToast("Thank you! Your message has been sent successfully. Denver will be in touch soon!", 'success');
-    }, 1200);
+      showToast(`Thank you, ${name}! Your inquiry has been sent. Denver will get back to you shortly.`, 'success');
+    }, 800);
   });
 }
 
