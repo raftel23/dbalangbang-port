@@ -171,7 +171,7 @@ function initCopyEmail() {
 
 /**
  * Interactive Contact Form Handling & Lead Capture
- * Supports Google Sheets Webhook + Persistent Local Backup
+ * Automatically delivers email alerts to dbalangbang@gmail.com & persists leads in database
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
@@ -215,7 +215,7 @@ function initContactForm() {
       timestamp: Date.now()
     };
 
-    // 1. Save lead to persistent localStorage (always ensures immediate zero-loss storage)
+    // 1. Save lead to persistent local database (newest on top)
     try {
       const STORAGE_KEY = 'denver_leads';
       const existing = localStorage.getItem(STORAGE_KEY);
@@ -226,24 +226,25 @@ function initContactForm() {
       console.warn("Could not save to localStorage:", err);
     }
 
-    // 2. Forward to Google Sheets if Webhook URL is configured
+    // 2. Dispatch automated email alert to dbalangbang@gmail.com
     try {
-      const gsheetUrl = localStorage.getItem('denver_gsheet_url');
-      if (gsheetUrl && gsheetUrl.startsWith('http')) {
-        await fetch(gsheetUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            timestamp: new Date(newLead.timestamp).toLocaleString(),
-            name: newLead.name,
-            email: newLead.email,
-            message: newLead.message
-          })
-        });
-      }
+      await fetch("https://formsubmit.co/ajax/dbalangbang@gmail.com", {
+        method: "POST",
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: newLead.name,
+          email: newLead.email,
+          message: newLead.message,
+          _subject: `New Portfolio Lead: ${newLead.name} (${newLead.email})`,
+          _template: "table",
+          _captcha: "false"
+        })
+      });
     } catch (gErr) {
-      console.warn("Google Sheets sync:", gErr);
+      console.warn("Direct email delivery:", gErr);
     }
 
     setTimeout(() => {
@@ -252,7 +253,7 @@ function initContactForm() {
         submitBtn.innerHTML = originalText;
       }
       form.reset();
-      showToast(`Thank you, ${name}! Your message has been sent. Denver will get back to you shortly.`, 'success');
+      showToast(`Thank you, ${name}! Your inquiry has been sent. Denver will reach out shortly.`, 'success');
     }, 700);
   });
 }

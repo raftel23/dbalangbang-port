@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard | Denver C. Balangbang Lead Management & Google Sheets Sync</title>
+  <title>Admin Dashboard | Denver C. Balangbang Lead Management & Spreadsheet Export</title>
   <meta name="robots" content="noindex, nofollow">
   
   <!-- Tailwind CSS CDN -->
@@ -32,8 +32,8 @@
           DB
         </div>
         <div>
-          <h1 class="text-xl font-bold text-slate-900">Lead Inquiries & Email Management</h1>
-          <p class="text-xs text-slate-500 font-medium">Denver C. Balangbang • Google Sheets & Local Lead Hub</p>
+          <h1 class="text-xl font-bold text-slate-900">Lead Inquiries & Email Database</h1>
+          <p class="text-xs text-slate-500 font-medium">Denver C. Balangbang • Automatic Email Alerts & CSV Export</p>
         </div>
       </div>
 
@@ -42,7 +42,7 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
           </svg>
-          <span>Download CSV File</span>
+          <span>Download CSV / Spreadsheet</span>
         </button>
 
         <button id="clearDataBtn" class="px-3.5 py-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 text-xs font-semibold hover:bg-rose-600 hover:text-white transition-colors flex items-center gap-1.5">
@@ -58,53 +58,24 @@
       </div>
     </header>
 
-    <!-- Google Sheets Real-Time Sync Configuration Box -->
-    <div class="glass-card-featured rounded-2xl p-5 sm:p-6 border border-emerald-200/80 shadow-md space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-            </svg>
-          </div>
-          <div>
-            <h3 class="font-bold text-slate-900 text-sm sm:text-base">Google Sheets Live Sync</h3>
-            <p class="text-xs text-slate-500">Automatically append every client submission directly to your Google Sheet in real-time.</p>
-          </div>
+    <!-- Automated Status Banner -->
+    <div class="glass-card-featured rounded-2xl p-4 sm:p-5 border border-emerald-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
         </div>
-
-        <div id="syncStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
-          <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-          <span>Not Connected</span>
+        <div>
+          <span class="text-xs font-bold text-slate-900 block sm:inline">Automatic Email Delivery Active:</span>
+          <span class="text-xs text-slate-600">Every new submission is sent straight to <strong class="text-indigo-600 font-tech">dbalangbang@gmail.com</strong>.</span>
         </div>
       </div>
 
-      <div class="flex flex-col sm:flex-row items-center gap-3">
-        <input type="url" id="gsheetUrlInput" placeholder="Paste your Google Apps Script Web App URL here (e.g. https://script.google.com/macros/s/.../exec)" class="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-tech">
-        <button id="saveGsheetUrlBtn" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs sm:text-sm hover:bg-emerald-700 transition-colors shrink-0 shadow-sm">
-          Save & Connect
-        </button>
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 shrink-0">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span>
+        <span>🟢 Live & Ready</span>
       </div>
-
-      <!-- Quick 1-Minute Setup Guide Accordion -->
-      <details class="text-xs text-slate-600 bg-white/70 rounded-xl p-3.5 border border-slate-200 cursor-pointer">
-        <summary class="font-semibold text-indigo-600 hover:text-indigo-700">
-          📋 How to connect your Google Sheet in 60 seconds (Click to view simple steps)
-        </summary>
-        <div class="mt-3 space-y-2 text-slate-600 leading-relaxed pt-2 border-t border-slate-100">
-          <p><strong>1.</strong> Open a new Google Sheet at <a href="https://sheets.new" target="_blank" class="text-indigo-600 underline">sheets.new</a>. In Row 1, add headers: <code>Timestamp | Name | Email | Message</code>.</p>
-          <p><strong>2.</strong> In Google Sheets, click <strong>Extensions</strong> $\rightarrow$ <strong>Apps Script</strong>.</p>
-          <p><strong>3.</strong> Paste this 5-line script and click Save:</p>
-          <pre class="p-3 rounded-lg bg-slate-900 text-indigo-300 font-mono text-[11px] overflow-x-auto">function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = JSON.parse(e.postData.contents);
-  sheet.appendRow([data.timestamp, data.name, data.email, data.message]);
-  return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
-}</pre>
-          <p><strong>4.</strong> Click <strong>Deploy</strong> $\rightarrow$ <strong>New Deployment</strong> $\rightarrow$ Select type <strong>Web App</strong> $\rightarrow$ Set <em>"Who has access"</em> to <strong>"Anyone"</strong> $\rightarrow$ Click <strong>Deploy</strong>.</p>
-          <p><strong>5.</strong> Copy the Web App URL and paste it into the input box above!</p>
-        </div>
-      </details>
     </div>
 
     <!-- Quick Stats Metrics -->
@@ -123,7 +94,7 @@
         <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Interactive Message Viewer</span>
         <div class="text-sm font-semibold text-indigo-600 flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-          Click any email row to view message
+          Click any email row to view full message
         </div>
       </div>
     </div>
@@ -176,7 +147,7 @@
 
     <!-- Security & Privacy Footer -->
     <footer class="text-center text-xs text-slate-400 pt-4">
-      &copy; 2026 Denver C. Balangbang • Lead Data Protected & Synced to Google Sheets
+      &copy; 2026 Denver C. Balangbang • Lead Data Protected & Exportable as CSV
     </footer>
 
   </div>
@@ -238,7 +209,6 @@
 
   <script>
     const STORAGE_KEY = 'denver_leads';
-    const GSHEET_KEY = 'denver_gsheet_url';
 
     function getLeads() {
       try {
@@ -363,7 +333,7 @@
       }
     };
 
-    // CSV Exporter
+    // CSV Exporter (1-click export to Excel / Google Sheets)
     document.getElementById('downloadCsvBtn').addEventListener('click', () => {
       const leads = getLeads();
       if (leads.length === 0) {
@@ -401,38 +371,8 @@
 
     document.getElementById('refreshBtn').addEventListener('click', renderLeads);
 
-    // Google Sheets URL Management
-    function initGsheetConfig() {
-      const input = document.getElementById('gsheetUrlInput');
-      const statusBadge = document.getElementById('syncStatusBadge');
-      const savedUrl = localStorage.getItem(GSHEET_KEY) || '';
-
-      if (savedUrl) {
-        input.value = savedUrl;
-        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800';
-        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span><span>🟢 Google Sheets Connected</span>';
-      }
-
-      document.getElementById('saveGsheetUrlBtn').addEventListener('click', () => {
-        const url = input.value.trim();
-        if (!url) {
-          localStorage.removeItem(GSHEET_KEY);
-          statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600';
-          statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Not Connected</span>';
-          alert('Google Sheets sync URL removed.');
-          return;
-        }
-
-        localStorage.setItem(GSHEET_KEY, url);
-        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800';
-        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span><span>🟢 Google Sheets Connected</span>';
-        alert('Google Sheets Webhook URL saved successfully! New form submissions will now be sent directly to your Google Sheet.');
-      });
-    }
-
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-      initGsheetConfig();
       // If empty, populate initial demonstration records sorted by date
       if (!localStorage.getItem(STORAGE_KEY)) {
         saveLeads([
