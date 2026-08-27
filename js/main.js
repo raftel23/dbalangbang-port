@@ -195,7 +195,7 @@ function initCharCounter() {
 
 /**
  * Interactive Contact Form Handling & Secure Backend Storage
- * Includes Client-Side + Server-Side Validation (Email regex, Max 200 characters)
+ * Communicates with /api/submit-form with Honeypot Trap & IP Cooldown (HTTP 429)
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
@@ -207,11 +207,13 @@ function initContactForm() {
     const nameInput = document.getElementById('clientName');
     const emailInput = document.getElementById('clientEmail');
     const messageInput = document.getElementById('clientMessage');
+    const honeypotInput = document.getElementById('company_fax');
     const counter = document.getElementById('charCounter');
 
     const name = nameInput ? nameInput.value.trim() : '';
     const email = emailInput ? emailInput.value.trim() : '';
     const message = messageInput ? messageInput.value.trim() : '';
+    const company_fax = honeypotInput ? honeypotInput.value.trim() : '';
 
     // 1. Validate Name
     if (!name || name.length > 100) {
@@ -256,53 +258,46 @@ function initContactForm() {
       `;
     }
 
-    const submissionData = {
-      timestamp: new Date().toLocaleString(),
+    const payload = {
       name,
       email,
-      message
+      message,
+      company_fax
     };
 
-    let sentSuccessfully = false;
-
-    // A. Primary: Dispatch to Serverless /api/contact (Server-side environment variables & hidden credentials)
     try {
-      const response = await fetch('/api/contact', {
+      const response = await fetch('/api/submit-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submissionData)
+        body: JSON.stringify(payload)
       });
-      if (response.ok) {
-        sentSuccessfully = true;
-      }
-    } catch (apiErr) {
-      console.warn("Serverless API forwarding fallback:", apiErr);
-    }
 
-    // B. Direct Google Apps Script fallback (if running on static preview or direct test)
-    if (!sentSuccessfully) {
-      const GOOGLE_SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbyPxo9FvkfecJlHsfbFksaREP-0AgUtX83vfmptsKcBLMpJUYziSY48XBKb_zq_yGPrVA/exec";
-      try {
-        await fetch(GOOGLE_SHEET_ENDPOINT, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(submissionData)
-        });
-      } catch (gErr) {
-        console.warn("Direct Google Sheet sync:", gErr);
-      }
-    }
+      const result = await response.json().catch(() => ({}));
 
-    setTimeout(() => {
+      if (response.status === 429) {
+        // IP Cooldown / Rate limiting triggered
+        showToast(result.message || 'Message sent! Please wait a few minutes before sending another.', 'info');
+      } else if (response.ok && result.success) {
+        // Success
+        form.reset();
+        if (counter) counter.textContent = '0 / 200';
+        showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
+      } else {
+        // Validation / Server error
+        showToast(result.error || 'Could not send message. Please check your inputs.', 'warning');
+      }
+
+    } catch (err) {
+      console.warn("API submission forwarding:", err);
+      form.reset();
+      if (counter) counter.textContent = '0 / 200';
+      showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
+    } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
       }
-      form.reset();
-      if (counter) counter.textContent = '0 / 200';
-      showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
-    }, 700);
+    }
   });
 }
 
