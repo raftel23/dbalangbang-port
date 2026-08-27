@@ -170,8 +170,8 @@ function initCopyEmail() {
 }
 
 // Live Google Sheet Database Webhook URL
-// Submissions write directly to your Google Sheet (most recent on top)
-const GOOGLE_SHEET_DATABASE_URL = "https://script.google.com/macros/s/AKfycbwBoNqnujdEz8vivB8pkemDFeGh313YHzDms4NwlkP16oK8Xm-rb4RAvQ1Rjejh7Sigqg/exec";
+// Submissions write directly to your Google Sheet (most recent on top) + trigger email notification
+const GOOGLE_SHEET_DATABASE_URL = "https://script.google.com/macros/s/AKfycbyPxo9FvkfecJlHsfbFksaREP-0AgUtX83vfmptsKcBLMpJUYziSY48XBKb_zq_yGPrVA/exec";
 
 /**
  * Interactive Contact Form Handling & Google Sheets Database Storage
