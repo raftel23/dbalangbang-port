@@ -194,12 +194,18 @@ function initCharCounter() {
 }
 
 /**
- * Interactive Contact Form Handling & Secure Backend Storage
- * Communicates with /api/submit-form with Honeypot Trap & IP Cooldown (HTTP 429)
+ * Interactive Contact Form Handling & Anti-Spam Protected Dispatch
+ * Features:
+ * 1. Honeypot Bot Trap (company_fax)
+ * 2. 1-5 Minute Cooldown Anti-Spam Rate Limiter
+ * 3. Strict Email Regex Validation & 200-Character Limit
+ * 4. Dual Real-time Dispatch: Google Sheet Database + Instant Email to dbalangbang@gmail.com
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
   if (!form) return;
+
+  const GOOGLE_SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbyPxo9FvkfecJlHsfbFksaREP-0AgUtX83vfmptsKcBLMpJUYziSY48XBKb_zq_yGPrVA/exec";
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -215,14 +221,29 @@ function initContactForm() {
     const message = messageInput ? messageInput.value.trim() : '';
     const company_fax = honeypotInput ? honeypotInput.value.trim() : '';
 
-    // 1. Validate Name
+    // 1. Honeypot Bot Trap: Silently discard automated spam bot submissions
+    if (company_fax !== '') {
+      form.reset();
+      if (counter) counter.textContent = '0 / 200';
+      showToast(`Thank you, ${name}! Your message has been sent.`, 'success');
+      return;
+    }
+
+    // 2. Cooldown Anti-Spam Check (1 to 5 min rate limiter)
+    const now = Date.now();
+    const activeCooldown = parseInt(localStorage.getItem('denver_cooldown_exp') || '0', 10);
+    if (now < activeCooldown) {
+      showToast('Message sent! Please wait a few minutes before sending another.', 'info');
+      return;
+    }
+
+    // 3. Strict Input Validation (Name, Email regex, Max 200 characters)
     if (!name || name.length > 100) {
       showToast("Please enter your full name (maximum 100 characters).", "warning");
       if (nameInput) nameInput.focus();
       return;
     }
 
-    // 2. Strict Email Regex Validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email) || email.length > 150) {
       showToast("Please enter a valid email address (e.g. name@domain.com).", "warning");
@@ -230,7 +251,6 @@ function initContactForm() {
       return;
     }
 
-    // 3. Strict Message Length Limit (Max 200 chars)
     if (!message) {
       showToast("Please enter your message or task requirements.", "warning");
       if (messageInput) messageInput.focus();
@@ -258,46 +278,61 @@ function initContactForm() {
       `;
     }
 
-    const payload = {
+    const submissionData = {
+      timestamp: new Date().toLocaleString(),
       name,
       email,
-      message,
-      company_fax
+      message
     };
 
+    // A. Dispatch to Google Sheet Database
     try {
-      const response = await fetch('/api/submit-form', {
+      fetch(GOOGLE_SHEET_ENDPOINT, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(submissionData)
+      }).catch(err => console.warn('Google Sheet write warning:', err));
+    } catch (sheetErr) {
+      console.warn('Google Sheet dispatch error:', sheetErr);
+    }
+
+    // B. Direct Automated Email Alert to dbalangbang@gmail.com
+    try {
+      await fetch("https://formsubmit.co/ajax/dbalangbang@gmail.com", {
+        method: "POST",
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: submissionData.name,
+          email: submissionData.email,
+          message: submissionData.message,
+          _subject: `🔥 New Portfolio Inquiry from ${submissionData.name}`,
+          _template: "table",
+          _captcha: "false"
+        })
       });
+    } catch (mailErr) {
+      console.warn('Email notification dispatch error:', mailErr);
+    }
 
-      const result = await response.json().catch(() => ({}));
+    // C. Set Random Cooldown Timer (1 to 5 minutes: 60s - 300s)
+    const minCooldown = 60 * 1000;
+    const maxCooldown = 300 * 1000;
+    const randomCooldown = Math.floor(Math.random() * (maxCooldown - minCooldown + 1)) + minCooldown;
+    localStorage.setItem('denver_cooldown_exp', String(now + randomCooldown));
 
-      if (response.status === 429) {
-        // IP Cooldown / Rate limiting triggered
-        showToast(result.message || 'Message sent! Please wait a few minutes before sending another.', 'info');
-      } else if (response.ok && result.success) {
-        // Success
-        form.reset();
-        if (counter) counter.textContent = '0 / 200';
-        showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
-      } else {
-        // Validation / Server error
-        showToast(result.error || 'Could not send message. Please check your inputs.', 'warning');
-      }
-
-    } catch (err) {
-      console.warn("API submission forwarding:", err);
-      form.reset();
-      if (counter) counter.textContent = '0 / 200';
-      showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
-    } finally {
+    setTimeout(() => {
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
       }
-    }
+      form.reset();
+      if (counter) counter.textContent = '0 / 200';
+      showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
+    }, 700);
   });
 }
 
