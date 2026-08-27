@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initScrollSpy();
   initScrollReveal();
   initCopyEmail();
+  initCharCounter();
   initContactForm();
   initSmoothScroll();
 });
@@ -169,12 +170,32 @@ function initCopyEmail() {
   });
 }
 
-// Live Google Sheet Database Webhook URL
-// Submissions write directly to your Google Sheet (most recent on top) + trigger email notification
-const GOOGLE_SHEET_DATABASE_URL = "https://script.google.com/macros/s/AKfycbyPxo9FvkfecJlHsfbFksaREP-0AgUtX83vfmptsKcBLMpJUYziSY48XBKb_zq_yGPrVA/exec";
+/**
+ * Real-time Anti-Spam Message Character Counter (Max 200)
+ */
+function initCharCounter() {
+  const messageInput = document.getElementById('clientMessage');
+  const counter = document.getElementById('charCounter');
+  if (!messageInput || !counter) return;
+
+  const updateCount = () => {
+    const len = messageInput.value.length;
+    counter.textContent = `${len} / 200`;
+    if (len >= 200) {
+      counter.className = 'font-bold text-rose-500';
+    } else if (len >= 180) {
+      counter.className = 'font-medium text-amber-500';
+    } else {
+      counter.className = 'font-medium text-slate-500';
+    }
+  };
+
+  messageInput.addEventListener('input', updateCount);
+}
 
 /**
- * Interactive Contact Form Handling & Google Sheets Database Storage
+ * Interactive Contact Form Handling & Secure Backend Storage
+ * Includes Client-Side + Server-Side Validation (Email regex, Max 200 characters)
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
@@ -186,13 +207,37 @@ function initContactForm() {
     const nameInput = document.getElementById('clientName');
     const emailInput = document.getElementById('clientEmail');
     const messageInput = document.getElementById('clientMessage');
+    const counter = document.getElementById('charCounter');
 
     const name = nameInput ? nameInput.value.trim() : '';
     const email = emailInput ? emailInput.value.trim() : '';
     const message = messageInput ? messageInput.value.trim() : '';
 
-    if (!name || !email || !message) {
-      showToast("Please fill in your name, email, and message.", "warning");
+    // 1. Validate Name
+    if (!name || name.length > 100) {
+      showToast("Please enter your full name (maximum 100 characters).", "warning");
+      if (nameInput) nameInput.focus();
+      return;
+    }
+
+    // 2. Strict Email Regex Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email) || email.length > 150) {
+      showToast("Please enter a valid email address (e.g. name@domain.com).", "warning");
+      if (emailInput) emailInput.focus();
+      return;
+    }
+
+    // 3. Strict Message Length Limit (Max 200 chars)
+    if (!message) {
+      showToast("Please enter your message or task requirements.", "warning");
+      if (messageInput) messageInput.focus();
+      return;
+    }
+
+    if (message.length > 200) {
+      showToast("Your message exceeds the 200-character limit. Please shorten it.", "warning");
+      if (messageInput) messageInput.focus();
       return;
     }
 
@@ -218,39 +263,35 @@ function initContactForm() {
       message
     };
 
-    // 1. Direct write to Google Sheet Database
-    if (GOOGLE_SHEET_DATABASE_URL && GOOGLE_SHEET_DATABASE_URL.startsWith('http')) {
+    let sentSuccessfully = false;
+
+    // A. Primary: Dispatch to Serverless /api/contact (Server-side environment variables & hidden credentials)
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submissionData)
+      });
+      if (response.ok) {
+        sentSuccessfully = true;
+      }
+    } catch (apiErr) {
+      console.warn("Serverless API forwarding fallback:", apiErr);
+    }
+
+    // B. Direct Google Apps Script fallback (if running on static preview or direct test)
+    if (!sentSuccessfully) {
+      const GOOGLE_SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbyPxo9FvkfecJlHsfbFksaREP-0AgUtX83vfmptsKcBLMpJUYziSY48XBKb_zq_yGPrVA/exec";
       try {
-        await fetch(GOOGLE_SHEET_DATABASE_URL, {
+        await fetch(GOOGLE_SHEET_ENDPOINT, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(submissionData)
         });
       } catch (gErr) {
-        console.warn("Google Sheet sync:", gErr);
+        console.warn("Direct Google Sheet sync:", gErr);
       }
-    }
-
-    // 2. Automated email delivery backup to dbalangbang@gmail.com
-    try {
-      await fetch("https://formsubmit.co/ajax/dbalangbang@gmail.com", {
-        method: "POST",
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          name: submissionData.name,
-          email: submissionData.email,
-          message: submissionData.message,
-          _subject: `New Portfolio Lead: ${submissionData.name} (${submissionData.email})`,
-          _template: "table",
-          _captcha: "false"
-        })
-      });
-    } catch (eErr) {
-      console.warn("Email alert dispatch:", eErr);
     }
 
     setTimeout(() => {
@@ -259,6 +300,7 @@ function initContactForm() {
         submitBtn.innerHTML = originalText;
       }
       form.reset();
+      if (counter) counter.textContent = '0 / 200';
       showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
     }, 700);
   });
