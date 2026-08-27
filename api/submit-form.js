@@ -89,11 +89,36 @@ export default async function handler(req, res) {
 
     // 5. Server-to-Server dispatch to Google Apps Script / Google Sheet
     if (googleSheetUrl && googleSheetUrl.startsWith('http')) {
-      await fetch(googleSheetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      try {
+        await fetch(googleSheetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (sheetErr) {
+        console.warn('Google Sheet dispatch warning:', sheetErr);
+      }
+    }
+
+    // 6. Direct Automated Email Delivery to dbalangbang@gmail.com
+    try {
+      await fetch("https://formsubmit.co/ajax/dbalangbang@gmail.com", {
+        method: "POST",
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: payload.name,
+          email: payload.email,
+          message: payload.message,
+          _subject: `🔥 New Portfolio Inquiry from ${payload.name}`,
+          _template: "table",
+          _captcha: "false"
+        })
       });
+    } catch (mailErr) {
+      console.warn('Direct email alert warning:', mailErr);
     }
 
     // 6. Set Random Cooldown Timer between 1 to 5 Minutes (60,000ms - 300,000ms)
