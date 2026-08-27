@@ -170,8 +170,8 @@ function initCopyEmail() {
 }
 
 // Live Google Sheet Database Webhook URL
-// Replace with your Google Apps Script Web App URL to store submissions directly in your Google Sheet
-const GOOGLE_SHEET_DATABASE_URL = "";
+// Submissions write directly to your Google Sheet (most recent on top)
+const GOOGLE_SHEET_DATABASE_URL = "https://script.google.com/macros/s/AKfycbwBoNqnujdEz8vivB8pkemDFeGh313YHzDms4NwlkP16oK8Xm-rb4RAvQ1Rjejh7Sigqg/exec";
 
 /**
  * Interactive Contact Form Handling & Google Sheets Database Storage
