@@ -169,9 +169,12 @@ function initCopyEmail() {
   });
 }
 
+// Live Google Sheet Database Webhook URL
+// Replace with your Google Apps Script Web App URL to store submissions directly in your Google Sheet
+const GOOGLE_SHEET_DATABASE_URL = "";
+
 /**
- * Interactive Contact Form Handling & Lead Capture
- * Automatically delivers email alerts to dbalangbang@gmail.com & persists leads in database
+ * Interactive Contact Form Handling & Google Sheets Database Storage
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
@@ -208,25 +211,28 @@ function initContactForm() {
       `;
     }
 
-    const newLead = {
+    const submissionData = {
+      timestamp: new Date().toLocaleString(),
       name,
       email,
-      message,
-      timestamp: Date.now()
+      message
     };
 
-    // 1. Save lead to persistent local database (newest on top)
-    try {
-      const STORAGE_KEY = 'denver_leads';
-      const existing = localStorage.getItem(STORAGE_KEY);
-      const leads = existing ? JSON.parse(existing) : [];
-      leads.unshift(newLead);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
-    } catch (err) {
-      console.warn("Could not save to localStorage:", err);
+    // 1. Direct write to Google Sheet Database
+    if (GOOGLE_SHEET_DATABASE_URL && GOOGLE_SHEET_DATABASE_URL.startsWith('http')) {
+      try {
+        await fetch(GOOGLE_SHEET_DATABASE_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submissionData)
+        });
+      } catch (gErr) {
+        console.warn("Google Sheet sync:", gErr);
+      }
     }
 
-    // 2. Dispatch automated email alert to dbalangbang@gmail.com
+    // 2. Automated email delivery backup to dbalangbang@gmail.com
     try {
       await fetch("https://formsubmit.co/ajax/dbalangbang@gmail.com", {
         method: "POST",
@@ -235,16 +241,16 @@ function initContactForm() {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          name: newLead.name,
-          email: newLead.email,
-          message: newLead.message,
-          _subject: `New Portfolio Lead: ${newLead.name} (${newLead.email})`,
+          name: submissionData.name,
+          email: submissionData.email,
+          message: submissionData.message,
+          _subject: `New Portfolio Lead: ${submissionData.name} (${submissionData.email})`,
           _template: "table",
           _captcha: "false"
         })
       });
-    } catch (gErr) {
-      console.warn("Direct email delivery:", gErr);
+    } catch (eErr) {
+      console.warn("Email alert dispatch:", eErr);
     }
 
     setTimeout(() => {
@@ -253,7 +259,7 @@ function initContactForm() {
         submitBtn.innerHTML = originalText;
       }
       form.reset();
-      showToast(`Thank you, ${name}! Your inquiry has been sent. Denver will reach out shortly.`, 'success');
+      showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
     }, 700);
   });
 }
