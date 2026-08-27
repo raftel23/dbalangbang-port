@@ -171,12 +171,13 @@ function initCopyEmail() {
 
 /**
  * Interactive Contact Form Handling & Lead Capture
+ * Supports Google Sheets Webhook + Persistent Local Backup
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
   if (!form) return;
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const nameInput = document.getElementById('clientName');
@@ -207,20 +208,42 @@ function initContactForm() {
       `;
     }
 
-    // Save lead to persistent localStorage
+    const newLead = {
+      name,
+      email,
+      message,
+      timestamp: Date.now()
+    };
+
+    // 1. Save lead to persistent localStorage (always ensures immediate zero-loss storage)
     try {
       const STORAGE_KEY = 'denver_leads';
       const existing = localStorage.getItem(STORAGE_KEY);
       const leads = existing ? JSON.parse(existing) : [];
-      leads.unshift({
-        name,
-        email,
-        message,
-        timestamp: Date.now()
-      });
+      leads.unshift(newLead);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
     } catch (err) {
       console.warn("Could not save to localStorage:", err);
+    }
+
+    // 2. Forward to Google Sheets if Webhook URL is configured
+    try {
+      const gsheetUrl = localStorage.getItem('denver_gsheet_url');
+      if (gsheetUrl && gsheetUrl.startsWith('http')) {
+        await fetch(gsheetUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            timestamp: new Date(newLead.timestamp).toLocaleString(),
+            name: newLead.name,
+            email: newLead.email,
+            message: newLead.message
+          })
+        });
+      }
+    } catch (gErr) {
+      console.warn("Google Sheets sync:", gErr);
     }
 
     setTimeout(() => {
@@ -229,8 +252,8 @@ function initContactForm() {
         submitBtn.innerHTML = originalText;
       }
       form.reset();
-      showToast(`Thank you, ${name}! Your inquiry has been sent. Denver will get back to you shortly.`, 'success');
-    }, 800);
+      showToast(`Thank you, ${name}! Your message has been sent. Denver will get back to you shortly.`, 'success');
+    }, 700);
   });
 }
 

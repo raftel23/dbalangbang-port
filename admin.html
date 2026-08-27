@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard | Denver C. Balangbang Lead Management</title>
+  <title>Admin Dashboard | Denver C. Balangbang Lead Management & Google Sheets Sync</title>
   <meta name="robots" content="noindex, nofollow">
   
   <!-- Tailwind CSS CDN -->
@@ -23,7 +23,7 @@
     <div class="ambient-orb orb-violet"></div>
   </div>
 
-  <div class="max-w-6xl mx-auto space-y-8 relative z-10">
+  <div class="max-w-6xl mx-auto space-y-6 relative z-10">
     
     <!-- Top Header -->
     <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-card rounded-2xl p-6 border border-slate-200 shadow-sm">
@@ -32,8 +32,8 @@
           DB
         </div>
         <div>
-          <h1 class="text-xl font-bold text-slate-900">Lead Inquiries & Email Captures</h1>
-          <p class="text-xs text-slate-500 font-medium">Denver C. Balangbang • Confidential Admin Hub</p>
+          <h1 class="text-xl font-bold text-slate-900">Lead Inquiries & Email Management</h1>
+          <p class="text-xs text-slate-500 font-medium">Denver C. Balangbang • Google Sheets & Local Lead Hub</p>
         </div>
       </div>
 
@@ -58,6 +58,55 @@
       </div>
     </header>
 
+    <!-- Google Sheets Real-Time Sync Configuration Box -->
+    <div class="glass-card-featured rounded-2xl p-5 sm:p-6 border border-emerald-200/80 shadow-md space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base">Google Sheets Live Sync</h3>
+            <p class="text-xs text-slate-500">Automatically append every client submission directly to your Google Sheet in real-time.</p>
+          </div>
+        </div>
+
+        <div id="syncStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span>Not Connected</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center gap-3">
+        <input type="url" id="gsheetUrlInput" placeholder="Paste your Google Apps Script Web App URL here (e.g. https://script.google.com/macros/s/.../exec)" class="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-tech">
+        <button id="saveGsheetUrlBtn" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-xs sm:text-sm hover:bg-emerald-700 transition-colors shrink-0 shadow-sm">
+          Save & Connect
+        </button>
+      </div>
+
+      <!-- Quick 1-Minute Setup Guide Accordion -->
+      <details class="text-xs text-slate-600 bg-white/70 rounded-xl p-3.5 border border-slate-200 cursor-pointer">
+        <summary class="font-semibold text-indigo-600 hover:text-indigo-700">
+          📋 How to connect your Google Sheet in 60 seconds (Click to view simple steps)
+        </summary>
+        <div class="mt-3 space-y-2 text-slate-600 leading-relaxed pt-2 border-t border-slate-100">
+          <p><strong>1.</strong> Open a new Google Sheet at <a href="https://sheets.new" target="_blank" class="text-indigo-600 underline">sheets.new</a>. In Row 1, add headers: <code>Timestamp | Name | Email | Message</code>.</p>
+          <p><strong>2.</strong> In Google Sheets, click <strong>Extensions</strong> $\rightarrow$ <strong>Apps Script</strong>.</p>
+          <p><strong>3.</strong> Paste this 5-line script and click Save:</p>
+          <pre class="p-3 rounded-lg bg-slate-900 text-indigo-300 font-mono text-[11px] overflow-x-auto">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([data.timestamp, data.name, data.email, data.message]);
+  return ContentService.createTextOutput(JSON.stringify({"result":"success"})).setMimeType(ContentService.MimeType.JSON);
+}</pre>
+          <p><strong>4.</strong> Click <strong>Deploy</strong> $\rightarrow$ <strong>New Deployment</strong> $\rightarrow$ Select type <strong>Web App</strong> $\rightarrow$ Set <em>"Who has access"</em> to <strong>"Anyone"</strong> $\rightarrow$ Click <strong>Deploy</strong>.</p>
+          <p><strong>5.</strong> Copy the Web App URL and paste it into the input box above!</p>
+        </div>
+      </details>
+    </div>
+
     <!-- Quick Stats Metrics -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div class="glass-card rounded-2xl p-5 border border-slate-200 space-y-1">
@@ -66,15 +115,15 @@
       </div>
 
       <div class="glass-card rounded-2xl p-5 border border-slate-200 space-y-1">
-        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Latest Submission</span>
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Latest Submission (Sorted Newest First)</span>
         <div class="text-sm font-semibold text-slate-800 truncate" id="latestLeadTime">No submissions yet</div>
       </div>
 
       <div class="glass-card rounded-2xl p-5 border border-slate-200 space-y-1">
-        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Data Format</span>
-        <div class="text-sm font-semibold text-emerald-600 flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          Ready for Excel / CSV Export
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Interactive Message Viewer</span>
+        <div class="text-sm font-semibold text-indigo-600 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+          Click any email row to view message
         </div>
       </div>
     </div>
@@ -83,8 +132,8 @@
     <div class="glass-card-featured rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-100 space-y-4">
       <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
         <div>
-          <h2 class="text-lg font-bold text-slate-900">Captured Inquiries</h2>
-          <p class="text-xs text-slate-500">List of all prospect emails submitted via the direct contact form.</p>
+          <h2 class="text-lg font-bold text-slate-900">Prospect Inquiries & Messages</h2>
+          <p class="text-xs text-slate-500">Click any row or email address to open and read their full message.</p>
         </div>
         <button id="refreshBtn" class="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -99,10 +148,10 @@
         <table class="w-full text-left border-collapse text-xs sm:text-sm">
           <thead>
             <tr class="border-b border-slate-200 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
-              <th class="py-3 px-4">Date & Time</th>
+              <th class="py-3 px-4">Date & Time ↓</th>
               <th class="py-3 px-4">Client Name</th>
-              <th class="py-3 px-4">Email Address</th>
-              <th class="py-3 px-4">Message / Requirements</th>
+              <th class="py-3 px-4">Clickable Email (View Message)</th>
+              <th class="py-3 px-4">Message Snippet</th>
               <th class="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
@@ -120,25 +169,84 @@
           </svg>
         </div>
         <div class="font-semibold text-slate-700">No Inquiries Recorded Yet</div>
-        <p class="text-xs text-slate-400 max-w-sm mx-auto">When clients submit their name and email on your landing page, their details will automatically appear here.</p>
+        <p class="text-xs text-slate-400 max-w-sm mx-auto">When clients submit their name and email on your landing page, their details will automatically appear here sorted by most recent date.</p>
       </div>
 
     </div>
 
     <!-- Security & Privacy Footer -->
     <footer class="text-center text-xs text-slate-400 pt-4">
-      &copy; 2026 Denver C. Balangbang • Lead Data Stored Locally in Browser Storage
+      &copy; 2026 Denver C. Balangbang • Lead Data Protected & Synced to Google Sheets
     </footer>
 
   </div>
 
+  <!-- Message Detail Modal (Opens when clicking any email/row) -->
+  <div id="messageModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-indigo-100 space-y-5 transform scale-95 transition-transform duration-200" id="modalCard">
+      
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between gap-4 pb-4 border-b border-slate-100">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 font-tech font-bold text-lg flex items-center justify-center" id="modalAvatar">
+            CL
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-base sm:text-lg" id="modalName">Client Name</h3>
+            <p class="text-xs text-slate-400 font-tech" id="modalTime">Date & Time</p>
+          </div>
+        </div>
+        <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors">
+          ✕
+        </button>
+      </div>
+
+      <!-- Email Contact Info -->
+      <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between gap-2">
+        <div>
+          <span class="text-[10px] font-bold text-indigo-900 uppercase tracking-wider block">Prospect Email Address</span>
+          <span class="font-tech text-sm font-semibold text-indigo-700 select-all" id="modalEmail">email@example.com</span>
+        </div>
+        <button id="modalCopyBtn" class="px-3 py-1.5 rounded-xl bg-white text-indigo-600 border border-indigo-200 text-xs font-semibold hover:bg-indigo-600 hover:text-white transition-colors">
+          Copy
+        </button>
+      </div>
+
+      <!-- Full Message Text Container -->
+      <div class="space-y-2">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Inquiry Message / Task Requirements</span>
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto" id="modalMessage">
+          Full message content...
+        </div>
+      </div>
+
+      <!-- Modal Actions -->
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        <button onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 transition-colors">
+          Close
+        </button>
+        <a id="modalReplyBtn" href="#" class="btn-futuristic px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 shadow-md">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+          <span>Reply via Email</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+
   <script>
     const STORAGE_KEY = 'denver_leads';
+    const GSHEET_KEY = 'denver_gsheet_url';
 
     function getLeads() {
       try {
         const data = localStorage.getItem(STORAGE_KEY);
-        return data ? JSON.parse(data) : [];
+        const list = data ? JSON.parse(data) : [];
+        // Sort by most recent timestamp first (newest on top)
+        list.sort((a, b) => (new Date(b.timestamp || 0) - new Date(a.timestamp || 0)));
+        return list;
       } catch (e) {
         return [];
       }
@@ -168,26 +276,29 @@
       latestEl.textContent = new Date(leads[0].timestamp || Date.now()).toLocaleString();
 
       tbody.innerHTML = leads.map((lead, index) => `
-        <tr class="hover:bg-slate-50/80 transition-colors">
+        <tr class="hover:bg-indigo-50/40 transition-colors cursor-pointer group" onclick="openLeadModal(${index})">
           <td class="py-3.5 px-4 text-xs text-slate-500 font-tech whitespace-nowrap">
             ${new Date(lead.timestamp || Date.now()).toLocaleDateString()} ${new Date(lead.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </td>
           <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">
             ${escapeHtml(lead.name || 'Anonymous')}
           </td>
-          <td class="py-3.5 px-4 text-indigo-600 font-medium whitespace-nowrap font-tech">
-            <a href="mailto:${escapeHtml(lead.email)}?subject=Re:%20Discovery%20Inquiry%20-%20Denver%20Balangbang" class="hover:underline">
+          <td class="py-3.5 px-4 font-tech whitespace-nowrap">
+            <span class="text-indigo-600 font-bold group-hover:underline flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
               ${escapeHtml(lead.email || 'N/A')}
-            </a>
+            </span>
           </td>
-          <td class="py-3.5 px-4 text-slate-600 text-xs max-w-xs sm:max-w-md truncate" title="${escapeHtml(lead.message || '')}">
+          <td class="py-3.5 px-4 text-slate-600 text-xs max-w-xs truncate font-normal">
             ${escapeHtml(lead.message || 'No message provided')}
           </td>
-          <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-2">
-            <a href="mailto:${escapeHtml(lead.email)}?subject=Re:%20Discovery%20Inquiry%20-%20Denver%20Balangbang" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-colors text-xs font-semibold inline-block">
-              Reply
-            </a>
-            <button onclick="deleteLead(${index})" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-colors text-xs font-semibold" title="Delete entry">
+          <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-2" onclick="event.stopPropagation()">
+            <button onclick="openLeadModal(${index})" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-colors text-xs font-semibold">
+              View Message
+            </button>
+            <button onclick="deleteLead(${index})" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors text-xs font-semibold" title="Delete entry">
               ✕
             </button>
           </td>
@@ -204,11 +315,52 @@
         .replace(/"/g, '&quot;');
     }
 
-    window.deleteLead = function(index) {
+    // Interactive Modal Viewer
+    window.openLeadModal = function(index) {
       const leads = getLeads();
-      leads.splice(index, 1);
-      saveLeads(leads);
-      renderLeads();
+      const lead = leads[index];
+      if (!lead) return;
+
+      document.getElementById('modalName').textContent = lead.name || 'Anonymous';
+      document.getElementById('modalAvatar').textContent = (lead.name ? lead.name.slice(0, 2).toUpperCase() : 'CL');
+      document.getElementById('modalTime').textContent = new Date(lead.timestamp || Date.now()).toLocaleString();
+      document.getElementById('modalEmail').textContent = lead.email || '';
+      document.getElementById('modalMessage').textContent = lead.message || '(No message provided)';
+
+      const replyBtn = document.getElementById('modalReplyBtn');
+      replyBtn.setAttribute('href', `mailto:${encodeURIComponent(lead.email)}?subject=Re:%20Discovery%20%26%207-Day%20Free%20Trial%20-%20Denver%20Balangbang`);
+
+      const copyBtn = document.getElementById('modalCopyBtn');
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(lead.email || '');
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+      };
+
+      const modal = document.getElementById('messageModal');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        document.getElementById('modalCard').classList.remove('scale-95');
+      }, 10);
+    };
+
+    window.closeModal = function() {
+      const modal = document.getElementById('messageModal');
+      modal.classList.add('opacity-0');
+      document.getElementById('modalCard').classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 200);
+    };
+
+    window.deleteLead = function(index) {
+      if (confirm('Delete this inquiry record?')) {
+        const leads = getLeads();
+        leads.splice(index, 1);
+        saveLeads(leads);
+        renderLeads();
+      }
     };
 
     // CSV Exporter
@@ -219,10 +371,10 @@
         return;
       }
 
-      let csvContent = 'Date & Time,Client Name,Email Address,Message\r\n';
+      let csvContent = '\uFEFFDate & Time,Client Name,Email Address,Message\r\n';
 
       leads.forEach(lead => {
-        const date = new Date(lead.timestamp || Date.now()).toISOString();
+        const date = `"${new Date(lead.timestamp || Date.now()).toLocaleString().replace(/"/g, '""')}"`;
         const name = `"${(lead.name || '').replace(/"/g, '""')}"`;
         const email = `"${(lead.email || '').replace(/"/g, '""')}"`;
         const message = `"${(lead.message || '').replace(/"/g, '""')}"`;
@@ -249,16 +401,52 @@
 
     document.getElementById('refreshBtn').addEventListener('click', renderLeads);
 
+    // Google Sheets URL Management
+    function initGsheetConfig() {
+      const input = document.getElementById('gsheetUrlInput');
+      const statusBadge = document.getElementById('syncStatusBadge');
+      const savedUrl = localStorage.getItem(GSHEET_KEY) || '';
+
+      if (savedUrl) {
+        input.value = savedUrl;
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800';
+        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span><span>🟢 Google Sheets Connected</span>';
+      }
+
+      document.getElementById('saveGsheetUrlBtn').addEventListener('click', () => {
+        const url = input.value.trim();
+        if (!url) {
+          localStorage.removeItem(GSHEET_KEY);
+          statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600';
+          statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Not Connected</span>';
+          alert('Google Sheets sync URL removed.');
+          return;
+        }
+
+        localStorage.setItem(GSHEET_KEY, url);
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800';
+        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span><span>🟢 Google Sheets Connected</span>';
+        alert('Google Sheets Webhook URL saved successfully! New form submissions will now be sent directly to your Google Sheet.');
+      });
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-      // If empty, populate a sample initial record for demonstration
+      initGsheetConfig();
+      // If empty, populate initial demonstration records sorted by date
       if (!localStorage.getItem(STORAGE_KEY)) {
         saveLeads([
           {
             name: "Sarah Jenkins",
             email: "sarah.jenkins@growthventures.io",
-            message: "Looking for full-service VA support for our digital agency: Instagram scheduling, Wix updates, and spreadsheet data entry. Interested in the 7-day trial!",
-            timestamp: Date.now() - 3600000 * 4
+            message: "Looking for full-service VA support for our digital agency: Instagram scheduling, Wix updates, and spreadsheet data entry. We want to test your 7-day free trial!",
+            timestamp: Date.now() - 3600000 * 2
+          },
+          {
+            name: "Marcus Vance",
+            email: "marcus@vancemedia.com",
+            message: "Hi Denver, we have daily customer records and video editing tasks in Filmora. Let's schedule a call to discuss the 7-day trial.",
+            timestamp: Date.now() - 3600000 * 18
           }
         ]);
       }
