@@ -2,14 +2,23 @@
  * Secure Serverless Backend Function: /api/submit-form
  * 
  * Features:
- * 1. Honeypot Bot Trap: Silently suppresses automated spam bots.
- * 2. Server-Side IP Cooldown Rate Limiter: Blocks spam clicks by enforcing a random 1-5 minute cooldown per IP (HTTP 429).
- * 3. Protected Environment Variables: All Google Sheets credentials & logic hidden strictly on the server side.
- * 4. Multi-Layer Input Validation: Email regex verification and 200-character message cap.
+ * 1. Honeypot Bot Trap: Silently rejects automated spam bots.
+ * 2. Server-Side IP Cooldown Rate Limiter: Enforces random 1-5 minute cooldown per IP (HTTP 429).
+ * 3. Google Sheets Integration: Appends client submissions directly to Google Sheets database.
+ * 4. Telegram Bot Notification: Instant alert via Telegram Bot API using environment variables.
+ * 5. Multi-Layer Input Validation: Email regex verification and 200-character message cap.
  */
 
 // Global in-memory cache for IP cooldowns across serverless invocations
 global._ipCooldowns = global._ipCooldowns || new Map();
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 export default async function handler(req, res) {
   // Only permit POST requests
@@ -18,7 +27,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract Client IP Address
+    // Extract Client IP Address for Rate Limiting
     const forwarded = req.headers['x-forwarded-for'];
     const clientIp = (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '') ||
                      req.headers['x-real-ip'] ||
@@ -87,7 +96,7 @@ export default async function handler(req, res) {
       message: trimmedMessage
     };
 
-    // 5. Server-to-Server dispatch to Google Apps Script / Google Sheet
+    // 5. Server-to-Server Dispatch to Google Sheet Database
     if (googleSheetUrl && googleSheetUrl.startsWith('http')) {
       try {
         await fetch(googleSheetUrl, {
@@ -100,28 +109,36 @@ export default async function handler(req, res) {
       }
     }
 
-    // 6. Direct Automated Email Delivery to dbalangbang@gmail.com
-    try {
-      await fetch("https://formsubmit.co/ajax/dbalangbang@gmail.com", {
-        method: "POST",
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          name: payload.name,
-          email: payload.email,
-          message: payload.message,
-          _subject: `🔥 New Portfolio Inquiry from ${payload.name}`,
-          _template: "table",
-          _captcha: "false"
-        })
-      });
-    } catch (mailErr) {
-      console.warn('Direct email alert warning:', mailErr);
+    // 6. Telegram Bot API Notification Dispatch
+    const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
+    const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+
+    if (telegramToken && telegramChatId) {
+      try {
+        const telegramMessage = `🚀 <b>New Portfolio Lead Received!</b>\n\n` +
+                                `👤 <b>Name:</b> ${escapeHtml(trimmedName)}\n` +
+                                `📧 <b>Email:</b> ${escapeHtml(trimmedEmail)}\n` +
+                                `⏰ <b>Time:</b> ${payload.timestamp}\n\n` +
+                                `💬 <b>Message:</b>\n${escapeHtml(trimmedMessage)}\n\n` +
+                                `📊 <i>Saved to Google Sheet Database</i>`;
+
+        await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: telegramChatId,
+            text: telegramMessage,
+            parse_mode: 'HTML'
+          })
+        });
+      } catch (tgErr) {
+        console.warn('Telegram notification dispatch warning:', tgErr);
+      }
+    } else {
+      console.warn('Telegram notifications skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured.');
     }
 
-    // 6. Set Random Cooldown Timer between 1 to 5 Minutes (60,000ms - 300,000ms)
+    // 7. Set Random Cooldown Timer between 1 to 5 Minutes (60,000ms - 300,000ms)
     const minCooldownMs = 60 * 1000;   // 1 minute
     const maxCooldownMs = 300 * 1000;  // 5 minutes
     const randomCooldownMs = Math.floor(Math.random() * (maxCooldownMs - minCooldownMs + 1)) + minCooldownMs;

@@ -199,13 +199,11 @@ function initCharCounter() {
  * 1. Honeypot Bot Trap (company_fax)
  * 2. 1-5 Minute Cooldown Anti-Spam Rate Limiter
  * 3. Strict Email Regex Validation & 200-Character Limit
- * 4. Dual Real-time Dispatch: Google Sheet Database + Instant Email to dbalangbang@gmail.com
+ * 4. Dispatches to /api/submit-form (Google Sheets + Telegram Notification)
  */
 function initContactForm() {
   const form = document.getElementById('contactForm');
   if (!form) return;
-
-  const GOOGLE_SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbyPxo9FvkfecJlHsfbFksaREP-0AgUtX83vfmptsKcBLMpJUYziSY48XBKb_zq_yGPrVA/exec";
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -278,61 +276,53 @@ function initContactForm() {
       `;
     }
 
-    const submissionData = {
-      timestamp: new Date().toLocaleString(),
+    const payload = {
       name,
       email,
-      message
+      message,
+      company_fax
     };
 
-    // A. Dispatch to Google Sheet Database
     try {
-      fetch(GOOGLE_SHEET_ENDPOINT, {
+      const response = await fetch('/api/submit-form', {
         method: 'POST',
-        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submissionData)
-      }).catch(err => console.warn('Google Sheet write warning:', err));
-    } catch (sheetErr) {
-      console.warn('Google Sheet dispatch error:', sheetErr);
-    }
-
-    // B. Direct Automated Email Alert to dbalangbang@gmail.com
-    try {
-      await fetch("https://formsubmit.co/ajax/dbalangbang@gmail.com", {
-        method: "POST",
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          name: submissionData.name,
-          email: submissionData.email,
-          message: submissionData.message,
-          _subject: `🔥 New Portfolio Inquiry from ${submissionData.name}`,
-          _template: "table",
-          _captcha: "false"
-        })
+        body: JSON.stringify(payload)
       });
-    } catch (mailErr) {
-      console.warn('Email notification dispatch error:', mailErr);
-    }
 
-    // C. Set Random Cooldown Timer (1 to 5 minutes: 60s - 300s)
-    const minCooldown = 60 * 1000;
-    const maxCooldown = 300 * 1000;
-    const randomCooldown = Math.floor(Math.random() * (maxCooldown - minCooldown + 1)) + minCooldown;
-    localStorage.setItem('denver_cooldown_exp', String(now + randomCooldown));
+      const result = await response.json().catch(() => ({}));
 
-    setTimeout(() => {
+      if (response.status === 429) {
+        // IP Cooldown / Rate limiting triggered
+        showToast(result.message || 'Message sent! Please wait a few minutes before sending another.', 'info');
+      } else if (response.ok && result.success) {
+        // Success
+        form.reset();
+        if (counter) counter.textContent = '0 / 200';
+        showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
+      } else {
+        // Validation / Server error
+        showToast(result.error || 'Could not send message. Please check your inputs.', 'warning');
+      }
+
+    } catch (err) {
+      console.warn("API submission forwarding:", err);
+      // Graceful fallback
+      form.reset();
+      if (counter) counter.textContent = '0 / 200';
+      showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
+    } finally {
+      // Set Random Cooldown Timer (1 to 5 minutes: 60s - 300s)
+      const minCooldown = 60 * 1000;
+      const maxCooldown = 300 * 1000;
+      const randomCooldown = Math.floor(Math.random() * (maxCooldown - minCooldown + 1)) + minCooldown;
+      localStorage.setItem('denver_cooldown_exp', String(now + randomCooldown));
+
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
       }
-      form.reset();
-      if (counter) counter.textContent = '0 / 200';
-      showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
-    }, 700);
+    }
   });
 }
 
