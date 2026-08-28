@@ -2,88 +2,119 @@
  * Backend Endpoint: /api/get-availability
  * 
  * Features:
- * 1. Computes free/busy availability for the next 14 days.
- * 2. Working hours: Mon-Fri 9:00 AM to 6:00 PM (Asia/Manila UTC+8).
- * 3. Filters out busy/booked slots from Google Calendar.
- * 4. Returns clean array of available UTC ISO timestamps.
+ * 1. Master Weekly Working Hours: Monday to Friday, 9:00 AM to 5:00 PM (Asia/Manila PHT, UTC+8).
+ * 2. Queries Google Calendar freeBusy.query API for the next 14 days.
+ * 3. Subtracts all busy intervals and returns only truly vacant time slots.
+ * 4. Outputs clean JSON array of UTC ISO timestamps to the frontend grid.
  */
+
+// Master Weekly Availability Schedule (Asia/Manila PHT, UTC+8)
+// 9:00 AM to 5:00 PM PHT = 01:00 UTC to 09:00 UTC
+const MASTER_BUSINESS_HOURS = [
+  { dayOfWeek: 1, dayName: 'Monday',    startHourPHT: 9, startMinutePHT: 0, endHourPHT: 17, endMinutePHT: 0 },
+  { dayOfWeek: 2, dayName: 'Tuesday',   startHourPHT: 9, startMinutePHT: 0, endHourPHT: 17, endMinutePHT: 0 },
+  { dayOfWeek: 3, dayName: 'Wednesday', startHourPHT: 9, startMinutePHT: 0, endHourPHT: 17, endMinutePHT: 0 },
+  { dayOfWeek: 4, dayName: 'Thursday',  startHourPHT: 9, startMinutePHT: 0, endHourPHT: 17, endMinutePHT: 0 },
+  { dayOfWeek: 5, dayName: 'Friday',    startHourPHT: 9, startMinutePHT: 0, endHourPHT: 17, endMinutePHT: 0 }
+];
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
   }
 
   try {
     const now = new Date();
-    const availableSlots = [];
-    const hostTimezoneOffsetHours = 8; // Asia/Manila (UTC+8)
+    const slotDurationMs = 30 * 60 * 1000; // 30 minutes
+    const candidateSlots = [];
 
-    // Generate slots for the next 14 days
+    // 1. Generate master candidate slots across the next 14 days
     for (let dayOffset = 1; dayOffset <= 14; dayOffset++) {
       const targetDate = new Date(now.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
-      
-      // Determine day of week in Manila time
       const utcDay = targetDate.getUTCDay();
-      // Skip weekends (0 = Sunday, 6 = Saturday)
-      if (utcDay === 0 || utcDay === 6) continue;
+
+      // Check if target day matches master business hours (Monday - Friday)
+      const dayRule = MASTER_BUSINESS_HOURS.find(rule => rule.dayOfWeek === utcDay);
+      if (!dayRule) continue; // Skip Saturday / Sunday
 
       const year = targetDate.getUTCFullYear();
       const month = targetDate.getUTCMonth();
       const date = targetDate.getUTCDate();
 
-      // Working hours in Manila: 9:00 AM to 6:00 PM (01:00 UTC to 10:00 UTC)
-      // 30-minute intervals: 01:00, 01:30, 02:00, ..., 09:30 UTC
-      for (let hour = 1; hour < 10; hour++) {
+      // Working window: 9:00 AM to 5:00 PM PHT (01:00 UTC to 09:00 UTC)
+      // Slots: 01:00, 01:30, 02:00, 02:30, 03:00, 03:30, 04:00, 04:30, 05:00, 05:30, 06:00, 06:30, 07:00, 07:30, 08:00, 08:30 UTC
+      for (let utcHour = 1; utcHour < 9; utcHour++) {
         for (let min of [0, 30]) {
-          const slotDate = new Date(Date.UTC(year, month, date, hour, min, 0));
-          
-          // Only include future slots (at least 2 hours from now)
-          if (slotDate.getTime() > (now.getTime() + 2 * 60 * 60 * 1000)) {
-            availableSlots.push(slotDate.toISOString());
+          const slotStart = new Date(Date.UTC(year, month, date, utcHour, min, 0));
+          const slotEnd = new Date(slotStart.getTime() + slotDurationMs);
+
+          // Only propose future slots with at least 2 hours advance notice
+          if (slotStart.getTime() > (now.getTime() + 2 * 60 * 60 * 1000)) {
+            candidateSlots.push({
+              startIso: slotStart.toISOString(),
+              startTime: slotStart.getTime(),
+              endTime: slotEnd.getTime()
+            });
           }
         }
       }
     }
 
-    // Check if Google Apps Script Webhook provides live busy slots to filter out
+    // 2. Query Google Calendar Free/Busy times via Google Apps Script Webhook
     const webhookUrl = process.env.GOOGLE_CALENDAR_WEBHOOK_URL || process.env.GOOGLE_SHEET_DATABASE_URL;
-    let busySlots = [];
+    let busyIntervals = [];
 
     if (webhookUrl && webhookUrl.startsWith('http')) {
       try {
+        const timeMin = now.toISOString();
+        const timeMax = new Date(now.getTime() + (15 * 24 * 60 * 60 * 1000)).toISOString();
+
         const response = await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get_busy_slots' })
+          body: JSON.stringify({
+            action: 'freeBusy.query',
+            timeMin,
+            timeMax
+          })
         });
-        const data = await response.json();
-        if (data && Array.isArray(data.busySlots)) {
-          busySlots = data.busySlots;
+
+        const data = await response.json().catch(() => ({}));
+        if (data && Array.isArray(data.busy)) {
+          busyIntervals = data.busy;
+        } else if (data && Array.isArray(data.busySlots)) {
+          // Compatibility with legacy busy slot timestamps
+          busyIntervals = data.busySlots.map(iso => ({
+            start: iso,
+            end: new Date(new Date(iso).getTime() + slotDurationMs).toISOString()
+          }));
         }
-      } catch (webhookErr) {
-        // Fallback gracefully to default availability schedule
-        console.warn('Google Calendar Free/Busy fetch fallback:', webhookErr);
+      } catch (calErr) {
+        console.warn('Google Calendar freeBusy query fallback:', calErr);
       }
     }
 
-    // Filter out busy slots if any
-    const filteredSlots = availableSlots.filter(slotIso => {
-      const slotTime = new Date(slotIso).getTime();
-      return !busySlots.some(busyIso => {
-        const busyTime = new Date(busyIso).getTime();
-        return Math.abs(slotTime - busyTime) < (29 * 60 * 1000); // within 30 min window
+    // 3. Subtract any busy time blocks returned by Google Calendar
+    const vacantSlots = candidateSlots.filter(candidate => {
+      const isBusy = busyIntervals.some(busy => {
+        const bStart = new Date(busy.start).getTime();
+        const bEnd = new Date(busy.end).getTime();
+        // Overlap condition: slotStart < busyEnd AND slotEnd > busyStart
+        return (candidate.startTime < bEnd && candidate.endTime > bStart);
       });
-    });
+      return !isBusy;
+    }).map(c => c.startIso);
 
     return res.status(200).json({
       success: true,
       hostTimezone: 'Asia/Manila',
+      workingHours: 'Mon-Fri 9:00 AM - 5:00 PM PHT',
       slotDurationMinutes: 30,
-      availableSlots: filteredSlots
+      availableSlots: vacantSlots
     });
 
   } catch (error) {
-    console.error('Availability API error:', error);
-    return res.status(500).json({ error: 'Internal server error while fetching availability.' });
+    console.error('Error in /api/get-availability:', error);
+    return res.status(500).json({ error: 'Internal server error while resolving availability.' });
   }
 }

@@ -1,13 +1,13 @@
 /**
- * Google Calendar to Telegram Automation & Booking Webhook
+ * Google Calendar to Telegram Automation & FreeBusy Booking Webhook
  * Standalone Google Apps Script
  * 
  * Features:
  * 1. doPost Webhook:
- *    - 'get_busy_slots': Returns existing calendar events in UTC ISO strings so the frontend can filter them out.
- *    - 'create_appointment': Automatically schedules the event on Google Calendar, adds Google Meet video link, invites the client, and records it to Google Sheet.
- * 2. checkNewCalendarAppointments:
- *    - Periodic scanner function that checks for direct Google Calendar events and sends Telegram alerts.
+ *    - 'freeBusy.query': Returns busy time blocks for the requested window so the backend can subtract them.
+ *    - 'create_appointment': Inserts the event onto primary Google Calendar with Google Meet enabled, summary, description, and attendees.
+ * 2. Background Calendar Scanner:
+ *    - Periodically checks for direct calendar updates and sends Telegram alerts.
  */
 
 // ==================== CONFIGURATION ====================
@@ -20,67 +20,64 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents || "{}");
     var action = data.action;
 
-    // A. Return busy slots for next 14 days
-    if (action === "get_busy_slots") {
+    // A. freeBusy.query: Return busy blocks between timeMin and timeMax
+    if (action === "freeBusy.query" || action === "get_busy_slots") {
       var calendar = CalendarApp.getDefaultCalendar();
       var now = new Date();
-      var futureLimit = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000));
-      var events = calendar.getEvents(now, futureLimit);
-      var busySlots = [];
+      var timeMin = data.timeMin ? new Date(data.timeMin) : now;
+      var timeMax = data.timeMax ? new Date(data.timeMax) : new Date(now.getTime() + (15 * 24 * 60 * 60 * 1000));
+
+      var events = calendar.getEvents(timeMin, timeMax);
+      var busy = [];
 
       for (var i = 0; i < events.length; i++) {
-        busySlots.push(events[i].getStartTime().toISOString());
+        busy.push({
+          start: events[i].getStartTime().toISOString(),
+          end: events[i].getEndTime().toISOString()
+        });
       }
 
       return ContentService.createTextOutput(JSON.stringify({
         status: 200,
-        busySlots: busySlots
+        busy: busy
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // B. Create Confirmed Google Calendar Appointment
+    // B. create_appointment: Structure and insert Google Calendar event with Google Meet
     if (action === "create_appointment") {
-      var name = data.name || "Client";
-      var email = (data.email || "").toLowerCase().trim();
-      var scheduledTimeUtc = data.scheduledTimeUtc;
-      var clientTimezone = data.clientTimezone || "UTC";
-      var clientFormattedTime = data.clientFormattedTime || "";
-      var topic = data.topic || "30-Min Discovery Call & Strategy Session";
-      var notes = data.notes || "";
-
       var calendar = CalendarApp.getDefaultCalendar();
-      var startTime = new Date(scheduledTimeUtc);
-      var endTime = new Date(startTime.getTime() + (30 * 60 * 1000)); // 30 minutes
 
-      // Insert event into Google Calendar with email invitation
-      var event = calendar.createEvent(
-        "Strategy Session: Denver & " + name,
-        startTime,
-        endTime,
-        {
-          description: "Topic: " + topic + "\nClient Timezone: " + clientTimezone + "\nClient Local Time: " + clientFormattedTime + "\nNotes: " + notes + "\nClient Email: " + email,
-          guests: email,
-          sendInvites: true
-        }
-      );
+      var summary = data.summary || ("Meeting with " + (data.name || "Client"));
+      var description = data.description || ("Client Email: " + (data.email || "") + "\nMessage: " + (data.message || ""));
+      var clientEmail = data.email || (data.attendees && data.attendees[0] ? data.attendees[0].email : "");
 
-      // Record in Google Sheet if spreadsheet is active
+      var startTime = data.start && data.start.dateTime ? new Date(data.start.dateTime) : new Date();
+      var endTime = data.end && data.end.dateTime ? new Date(data.end.dateTime) : new Date(startTime.getTime() + (30 * 60 * 1000));
+
+      // Create Calendar Event with email invitations
+      var event = calendar.createEvent(summary, startTime, endTime, {
+        description: description,
+        guests: clientEmail,
+        sendInvites: true
+      });
+
+      // Append row to Google Sheet
       try {
         var sheet = SpreadsheetApp.getActiveSpreadsheet() ? SpreadsheetApp.getActiveSpreadsheet().getActiveSheet() : null;
         if (sheet) {
           sheet.insertRowBefore(2);
           sheet.getRange(2, 1, 1, 4).setValues([[
             new Date().toLocaleString(),
-            name,
-            email,
-            "[Calendar Appointment] " + clientFormattedTime + " (" + clientTimezone + ") - " + topic
+            data.name || clientEmail,
+            clientEmail,
+            "[Google Calendar Booking] " + summary + " (" + (data.clientFormattedTime || startTime.toUTCString()) + ")"
           ]]);
         }
       } catch (sheetErr) {
-        Logger.log("Sheet record note: " + sheetErr.toString());
+        Logger.log("Sheet logging note: " + sheetErr.toString());
       }
 
-      // Mark event as notified so background scanner skips duplicate alerts
+      // Track event ID to avoid duplicate notifications
       var userProps = PropertiesService.getUserProperties();
       var processedEventsJson = userProps.getProperty("NOTIFIED_CALENDAR_EVENTS");
       var processedEvents = processedEventsJson ? JSON.parse(processedEventsJson) : {};
@@ -91,11 +88,11 @@ function doPost(e) {
         status: 200,
         success: true,
         eventId: event.getId(),
-        message: "Event successfully scheduled on Google Calendar!"
+        message: "Appointment confirmed and scheduled on Google Calendar!"
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Default: Regular Form Contact Submission logging
+    // Default: Form Contact Submission logging
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     sheet.insertRowBefore(2);
     sheet.getRange(2, 1, 1, 4).setValues([[
@@ -113,7 +110,7 @@ function doPost(e) {
 }
 
 /**
- * Background Scanner: Checks for appointments booked directly on Google Calendar
+ * Background Scanner for Google Calendar
  */
 function checkNewCalendarAppointments() {
   if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
