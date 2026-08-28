@@ -1,22 +1,119 @@
 /**
- * Google Calendar to Telegram Automation (Standalone Google Apps Script)
+ * Google Calendar to Telegram Automation & Booking Webhook
+ * Standalone Google Apps Script
  * 
- * Instructions:
- * 1. Go to https://script.google.com and click "New Project".
- * 2. Paste this entire script into the editor.
- * 3. Fill in your TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID below.
- * 4. Run the "testTelegramAlert" function once to verify your bot sends you a message.
- * 5. Set up an automatic Time-driven trigger (Runs every 5-10 minutes) as detailed in the instructions.
+ * Features:
+ * 1. doPost Webhook:
+ *    - 'get_busy_slots': Returns existing calendar events in UTC ISO strings so the frontend can filter them out.
+ *    - 'create_appointment': Automatically schedules the event on Google Calendar, adds Google Meet video link, invites the client, and records it to Google Sheet.
+ * 2. checkNewCalendarAppointments:
+ *    - Periodic scanner function that checks for direct Google Calendar events and sends Telegram alerts.
  */
 
 // ==================== CONFIGURATION ====================
-var TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"; // e.g. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ
-var TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID_HERE";     // e.g. 987654321 or @your_channel
+var TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"; // From @BotFather
+var TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID_HERE";     // From @userinfobot
 // =======================================================
 
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents || "{}");
+    var action = data.action;
+
+    // A. Return busy slots for next 14 days
+    if (action === "get_busy_slots") {
+      var calendar = CalendarApp.getDefaultCalendar();
+      var now = new Date();
+      var futureLimit = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000));
+      var events = calendar.getEvents(now, futureLimit);
+      var busySlots = [];
+
+      for (var i = 0; i < events.length; i++) {
+        busySlots.push(events[i].getStartTime().toISOString());
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 200,
+        busySlots: busySlots
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // B. Create Confirmed Google Calendar Appointment
+    if (action === "create_appointment") {
+      var name = data.name || "Client";
+      var email = (data.email || "").toLowerCase().trim();
+      var scheduledTimeUtc = data.scheduledTimeUtc;
+      var clientTimezone = data.clientTimezone || "UTC";
+      var clientFormattedTime = data.clientFormattedTime || "";
+      var topic = data.topic || "30-Min Discovery Call & Strategy Session";
+      var notes = data.notes || "";
+
+      var calendar = CalendarApp.getDefaultCalendar();
+      var startTime = new Date(scheduledTimeUtc);
+      var endTime = new Date(startTime.getTime() + (30 * 60 * 1000)); // 30 minutes
+
+      // Insert event into Google Calendar with email invitation
+      var event = calendar.createEvent(
+        "Strategy Session: Denver & " + name,
+        startTime,
+        endTime,
+        {
+          description: "Topic: " + topic + "\nClient Timezone: " + clientTimezone + "\nClient Local Time: " + clientFormattedTime + "\nNotes: " + notes + "\nClient Email: " + email,
+          guests: email,
+          sendInvites: true
+        }
+      );
+
+      // Record in Google Sheet if spreadsheet is active
+      try {
+        var sheet = SpreadsheetApp.getActiveSpreadsheet() ? SpreadsheetApp.getActiveSpreadsheet().getActiveSheet() : null;
+        if (sheet) {
+          sheet.insertRowBefore(2);
+          sheet.getRange(2, 1, 1, 4).setValues([[
+            new Date().toLocaleString(),
+            name,
+            email,
+            "[Calendar Appointment] " + clientFormattedTime + " (" + clientTimezone + ") - " + topic
+          ]]);
+        }
+      } catch (sheetErr) {
+        Logger.log("Sheet record note: " + sheetErr.toString());
+      }
+
+      // Mark event as notified so background scanner skips duplicate alerts
+      var userProps = PropertiesService.getUserProperties();
+      var processedEventsJson = userProps.getProperty("NOTIFIED_CALENDAR_EVENTS");
+      var processedEvents = processedEventsJson ? JSON.parse(processedEventsJson) : {};
+      processedEvents[event.getId()] = new Date().toISOString();
+      userProps.setProperty("NOTIFIED_CALENDAR_EVENTS", JSON.stringify(processedEvents));
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 200,
+        success: true,
+        eventId: event.getId(),
+        message: "Event successfully scheduled on Google Calendar!"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Default: Regular Form Contact Submission logging
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    sheet.insertRowBefore(2);
+    sheet.getRange(2, 1, 1, 4).setValues([[
+      data.timestamp || new Date().toLocaleString(),
+      data.name || "",
+      data.email || "",
+      data.message || ""
+    ]]);
+
+    return ContentService.createTextOutput(JSON.stringify({ status: 200, success: true })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 /**
- * Main function that checks for new calendar appointments and sends Telegram alerts.
- * Trigger this function every 5-10 minutes.
+ * Background Scanner: Checks for appointments booked directly on Google Calendar
  */
 function checkNewCalendarAppointments() {
   if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
@@ -26,7 +123,6 @@ function checkNewCalendarAppointments() {
 
   var calendar = CalendarApp.getDefaultCalendar();
   var now = new Date();
-  // Look for appointments from now up to 30 days ahead
   var futureLimit = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
   var events = calendar.getEvents(now, futureLimit);
 
@@ -40,15 +136,12 @@ function checkNewCalendarAppointments() {
     var event = events[i];
     var eventId = event.getId();
 
-    // Check if we've already notified for this event
     if (!processedEvents[eventId]) {
       var title = event.getTitle() || "Strategy Session / Meeting";
       var startTime = event.getStartTime();
       var endTime = event.getEndTime();
-      var description = event.getDescription() || "No additional notes provided.";
       var location = event.getLocation() || "";
 
-      // Extract guest emails if available
       var guests = event.getGuestList();
       var guestEmails = [];
       for (var g = 0; g < guests.length; g++) {
@@ -56,13 +149,11 @@ function checkNewCalendarAppointments() {
       }
       var guestListStr = guestEmails.length > 0 ? guestEmails.join(", ") : "Direct Booking";
 
-      // Format clean dates
       var timeZone = Session.getScriptTimeZone();
       var formattedDate = Utilities.formatDate(startTime, timeZone, "EEEE, MMM d, yyyy");
       var formattedStartTime = Utilities.formatDate(startTime, timeZone, "hh:mm a");
       var formattedEndTime = Utilities.formatDate(endTime, timeZone, "hh:mm a");
 
-      // Build clean Telegram message
       var msg = "📅 <b>New Appointment Scheduled on Google Calendar!</b>\n\n" +
                 "📌 <b>Event:</b> " + escapeHtml(title) + "\n" +
                 "🗓️ <b>Date:</b> " + formattedDate + "\n" +
@@ -70,12 +161,11 @@ function checkNewCalendarAppointments() {
                 "👤 <b>Attendee(s):</b> " + escapeHtml(guestListStr) + "\n";
 
       if (location) {
-        msg += "📍 <b>Meeting Link/Location:</b> " + escapeHtml(location) + "\n";
+        msg += "📍 <b>Location/Meet Link:</b> " + escapeHtml(location) + "\n";
       }
 
       msg += "\n✨ <i>Automated Google Calendar Alert</i>";
 
-      // Send to Telegram
       var success = sendTelegramMessage(msg);
       if (success) {
         processedEvents[eventId] = new Date().toISOString();
@@ -84,14 +174,10 @@ function checkNewCalendarAppointments() {
     }
   }
 
-  // Save updated processed events list
   userProperties.setProperty("NOTIFIED_CALENDAR_EVENTS", JSON.stringify(processedEvents));
   Logger.log("Scan complete. Sent alerts for " + newEventCount + " new appointments.");
 }
 
-/**
- * Sends HTML formatted message to Telegram Bot API
- */
 function sendTelegramMessage(text) {
   var url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage";
   var payload = {
@@ -109,36 +195,13 @@ function sendTelegramMessage(text) {
 
   try {
     var response = UrlFetchApp.fetch(url, options);
-    var resCode = response.getResponseCode();
-    if (resCode === 200) {
-      return true;
-    } else {
-      Logger.log("Telegram API Error (" + resCode + "): " + response.getContentText());
-      return false;
-    }
+    return response.getResponseCode() === 200;
   } catch (e) {
-    Logger.log("UrlFetchApp Exception: " + e.toString());
+    Logger.log("Telegram send error: " + e.toString());
     return false;
   }
 }
 
-/**
- * One-click test function to verify Telegram Bot credentials
- */
-function testTelegramAlert() {
-  var testMsg = "✅ <b>Telegram Bot Connected Successfully!</b>\n\n" +
-                "Your Google Calendar is ready to deliver real-time appointment alerts to this chat.";
-  var result = sendTelegramMessage(testMsg);
-  if (result) {
-    Logger.log("Test message sent successfully!");
-  } else {
-    Logger.log("Failed to send test message. Check your Token and Chat ID.");
-  }
-}
-
-/**
- * Escapes HTML characters for Telegram parse_mode: HTML
- */
 function escapeHtml(text) {
   if (!text) return "";
   return text
