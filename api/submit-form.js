@@ -109,18 +109,18 @@ export default async function handler(req, res) {
       }
     }
 
-    // 6. Telegram Bot API Notification Dispatch
+    // 6. Telegram Bot API Notification Dispatch (HTTPS POST)
     const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
     const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
     if (telegramToken && telegramChatId) {
       try {
-        const telegramMessage = `🚀 <b>New Portfolio Lead Received!</b>\n\n` +
-                                `👤 <b>Name:</b> ${escapeHtml(trimmedName)}\n` +
-                                `📧 <b>Email:</b> ${escapeHtml(trimmedEmail)}\n` +
-                                `⏰ <b>Time:</b> ${payload.timestamp}\n\n` +
-                                `💬 <b>Message:</b>\n${escapeHtml(trimmedMessage)}\n\n` +
-                                `📊 <i>Saved to Google Sheet Database</i>`;
+        const telegramMessage = `📬 <b>New Website Inquiry Received!</b>\n\n` +
+                                `👤 <b>Client Name:</b> ${escapeHtml(trimmedName)}\n` +
+                                `📧 <b>Client Email:</b> ${escapeHtml(trimmedEmail)}\n` +
+                                `⏰ <b>Submitted At:</b> ${payload.timestamp}\n\n` +
+                                `💬 <b>Message / Requirements:</b>\n${escapeHtml(trimmedMessage)}\n\n` +
+                                `📊 <i>Automatically stored in Google Sheets</i>`;
 
         await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
           method: 'POST',
@@ -135,12 +135,12 @@ export default async function handler(req, res) {
         console.warn('Telegram notification dispatch warning:', tgErr);
       }
     } else {
-      console.warn('Telegram notifications skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured.');
+      console.warn('Telegram notifications skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured in environment variables.');
     }
 
-    // 7. Set Random Cooldown Timer between 1 to 5 Minutes (60,000ms - 300,000ms)
-    const minCooldownMs = 60 * 1000;   // 1 minute
-    const maxCooldownMs = 300 * 1000;  // 5 minutes
+    // 7. Set Random IP Cooldown Timer between 5 to 10 Minutes (300,000ms - 600,000ms)
+    const minCooldownMs = 5 * 60 * 1000;   // 5 minutes
+    const maxCooldownMs = 10 * 60 * 1000;  // 10 minutes
     const randomCooldownMs = Math.floor(Math.random() * (maxCooldownMs - minCooldownMs + 1)) + minCooldownMs;
 
     global._ipCooldowns.set(clientIp, now + randomCooldownMs);
