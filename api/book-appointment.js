@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Extract Client IP Address
+    // 1. Extract Client IP Address and Submitted Email immediately
     const forwarded = req.headers['x-forwarded-for'];
     const clientIp = (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '') ||
                      req.headers['x-real-ip'] ||
@@ -34,22 +34,10 @@ export default async function handler(req, res) {
                      'unknown-client';
 
     const { name, email, slotUtc, clientTimezone, topic, notes, company_fax } = req.body || {};
-
+    const trimmedEmail = typeof email === 'string' ? email.toLowerCase().trim() : '';
     const now = Date.now();
 
-    // 2. Honeypot Verification (Silent Trap for Automated Bots)
-    if (company_fax && String(company_fax).trim() !== '') {
-      console.warn(`[Honeypot Triggered] Blocked bot appointment from IP: ${clientIp}`);
-      return res.status(200).json({ success: true, message: 'Appointment secured.' });
-    }
-
-    const trimmedName = typeof name === 'string' ? name.trim() : '';
-    const trimmedEmail = typeof email === 'string' ? email.toLowerCase().trim() : '';
-    const trimmedTimezone = typeof clientTimezone === 'string' ? clientTimezone.trim() : 'UTC';
-    const trimmedTopic = typeof topic === 'string' && topic.trim() ? topic.trim() : '30-Min Strategy & Discovery Call';
-    const trimmedNotes = typeof notes === 'string' ? notes.trim() : '';
-
-    // 3. IP & Email Cooldown Rate Limiting (1-to-5 minutes)
+    // 2. STRICT COOLDOWN CHECK (Executed immediately BEFORE Google Calendar, Sheets, or Telegram)
     const ipKey = `ip:${clientIp}`;
     const emailKey = trimmedEmail ? `email:${trimmedEmail}` : null;
 
@@ -60,14 +48,30 @@ export default async function handler(req, res) {
       const activeExpiry = Math.max(ipExpiry || 0, emailExpiry || 0);
       const remainingSeconds = Math.ceil((activeExpiry - now) / 1000);
 
-      console.warn(`[Appointment Cooldown Blocked] Intercepted request from IP: ${clientIp}, Email: ${trimmedEmail} (Active for ${remainingSeconds}s)`);
+      console.warn(`[Appointment Cooldown Intercepted] Blocked spam booking from IP: ${clientIp}, Email: ${trimmedEmail}. Cooldown active for ${remainingSeconds}s.`);
 
+      // STRICT BLOCK:
+      // - Do NOT call Google Calendar API
+      // - Do NOT create an event
+      // - Do NOT trigger Telegram alerts
+      // - Do NOT update Google Sheet database
       return res.status(429).json({
         error: 'cooldown',
         message: 'Appointment already secured! Please wait a few minutes before trying to schedule another session.',
         remainingSeconds
       });
     }
+
+    // 3. Honeypot Verification (Silent Trap for Automated Bots)
+    if (company_fax && String(company_fax).trim() !== '') {
+      console.warn(`[Honeypot Triggered] Blocked bot appointment from IP: ${clientIp}`);
+      return res.status(200).json({ success: true, message: 'Appointment secured.' });
+    }
+
+    const trimmedName = typeof name === 'string' ? name.trim() : '';
+    const trimmedTimezone = typeof clientTimezone === 'string' ? clientTimezone.trim() : 'UTC';
+    const trimmedTopic = typeof topic === 'string' && topic.trim() ? topic.trim() : '30-Min Strategy & Discovery Call';
+    const trimmedNotes = typeof notes === 'string' ? notes.trim() : '';
 
     // 4. Input Validation
     if (!trimmedName || trimmedName.length > 100) {
