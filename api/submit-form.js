@@ -138,9 +138,9 @@ export default async function handler(req, res) {
       console.warn('Telegram notifications skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured in environment variables.');
     }
 
-    // 7. Set Random IP Cooldown Timer between 5 to 10 Minutes (300,000ms - 600,000ms)
-    const minCooldownMs = 5 * 60 * 1000;   // 5 minutes
-    const maxCooldownMs = 10 * 60 * 1000;  // 10 minutes
+    // 7. Set Random IP Cooldown Timer between 1 to 5 Minutes (60,000ms - 300,000ms)
+    const minCooldownMs = 1 * 60 * 1000;   // 1 minute
+    const maxCooldownMs = 5 * 60 * 1000;   // 5 minutes
     const randomCooldownMs = Math.floor(Math.random() * (maxCooldownMs - minCooldownMs + 1)) + minCooldownMs;
 
     global._ipCooldowns.set(clientIp, now + randomCooldownMs);

@@ -312,9 +312,9 @@ function initContactForm() {
       if (counter) counter.textContent = '0 / 200';
       showToast(`Thank you, ${name}! Your message has been sent. Denver will reach out shortly.`, 'success');
     } finally {
-    // C. Set Random Cooldown Timer (5 to 10 minutes: 300s - 600s)
-    const minCooldown = 5 * 60 * 1000;
-    const maxCooldown = 10 * 60 * 1000;
+    // C. Set Random Cooldown Timer (1 to 5 minutes: 60s - 300s)
+    const minCooldown = 1 * 60 * 1000;
+    const maxCooldown = 5 * 60 * 1000;
     const randomCooldown = Math.floor(Math.random() * (maxCooldown - minCooldown + 1)) + minCooldown;
     localStorage.setItem('denver_cooldown_exp', String(now + randomCooldown));
 
