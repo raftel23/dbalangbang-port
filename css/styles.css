@@ -273,3 +273,56 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   outline: 2px solid #6366F1;
   outline-offset: 2px;
 }
+
+/* ==========================================================================
+   Cal.com Embed Styling & Promotional Branding Suppression
+   ========================================================================== */
+
+/* Outer parent wrapper with precise viewport clipping */
+.cal-embed-wrapper {
+  position: relative;
+  width: 100%;
+  height: 540px;
+  max-height: 540px;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+/* Push and clip the bottom promotional footer segment */
+.cal-embed-wrapper #my-cal-inline-30min {
+  position: relative;
+  width: 100% !important;
+  height: calc(100% + 56px) !important;
+  margin-bottom: -56px !important;
+  overflow: hidden !important;
+}
+
+.cal-embed-wrapper #my-cal-inline-30min iframe,
+.cal-embed-wrapper iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  border-radius: 1rem !important;
+}
+
+/* Force hide any Cal.com branding or footer elements if accessible in DOM */
+[data-testid="branding"],
+[data-testid="embed-footer"],
+[data-cal-branding],
+.cal-branding,
+.cal-footer,
+[class*="Branding"],
+[class*="branding"],
+[class*="embedFooter"],
+[class*="promoFooter"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+}
+
